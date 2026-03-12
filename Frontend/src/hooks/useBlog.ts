@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = `${import.meta.env.VITE_API_URL}/posts`;
-console.log("API URL:", API); // ← add this to check
+console.log("API URL:", API); 
 
 export const useBlog = () => {
   const getPosts = async () => {
