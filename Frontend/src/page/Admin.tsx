@@ -13,7 +13,7 @@ type Post = {
 };
 
 export default function AdminPage() {
-    const { getPosts, createPost } = useBlog();
+    const { getPosts, createPost, updatePost, deletePost } = useBlog();
     const navigate = useNavigate();
 
     const [posts, setPosts] = useState<Post[]>([]);
@@ -21,6 +21,17 @@ export default function AdminPage() {
     const [content, setContent] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
+    // Edit modal state
+    const [editPost, setEditPost] = useState<Post | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+    const [editContent, setEditContent] = useState("");
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState("");
+
+    // Delete confirm state
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     const fetchPosts = async () => {
         try {
@@ -62,6 +73,56 @@ export default function AdminPage() {
             setError("Failed to create post");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const openEditModal = (post: Post) => {
+        setEditPost(post);
+        setEditTitle(post.title);
+        setEditContent(post.content);
+        setEditError("");
+    };
+
+    const closeEditModal = () => {
+        setEditPost(null);
+        setEditTitle("");
+        setEditContent("");
+        setEditError("");
+    };
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setEditError("");
+
+        if (!editTitle.trim() || !editContent.trim()) {
+            setEditError("Title and content are required");
+            return;
+        }
+
+        try {
+            setEditLoading(true);
+            await updatePost(editPost!.id, { title: editTitle, content: editContent });
+            closeEditModal();
+            await fetchPosts();
+        } catch (err) {
+            console.error("Failed to update post:", err);
+            setEditError("Failed to update post");
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteId) return;
+        try {
+            setDeleteLoading(true);
+            await deletePost(deleteId);
+            setDeleteId(null);
+            await fetchPosts();
+        } catch (err) {
+            console.error("Failed to delete post:", err);
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -180,23 +241,138 @@ export default function AdminPage() {
                             <p className="text-gray-500 text-sm mt-1 line-clamp-2">
                                 {post.content}
                             </p>
-                            <div className="flex justify-between text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100">
+                            <div className="flex justify-between items-center text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100">
                                 <span className="flex items-center gap-1">
                                     👤 {post.author?.name || "Unknown"}
                                 </span>
                                 <span>
-                                    {new Date(post.created_at).toLocaleDateString("en-US", {
+                                    {new Date(post.createdAt).toLocaleDateString("en-US", {
                                         year: "numeric",
                                         month: "short",
                                         day: "numeric",
                                     })}
                                 </span>
                             </div>
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    onClick={() => openEditModal(post)}
+                                    className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg py-2 transition"
+                                >
+                                    ✏️ Edit
+                                </button>
+                                <button
+                                    onClick={() => setDeleteId(post.id)}
+                                    className="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg py-2 transition"
+                                >
+                                    🗑️ Delete
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
 
             </div>
+
+            {/* Edit Modal */}
+            {editPost && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-5">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800">Edit Post</h2>
+                                <p className="text-gray-400 text-sm">Update your article</p>
+                            </div>
+                            <button
+                                onClick={closeEditModal}
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none transition"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {editError && (
+                            <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
+                                ⚠️ {editError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleUpdate} className="space-y-4">
+                            <div>
+                                <label className="text-gray-600 text-sm font-medium mb-1 block">
+                                    Title
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter post title"
+                                    className="w-full p-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-gray-600 text-sm font-medium mb-1 block">
+                                    Content
+                                </label>
+                                <textarea
+                                    placeholder="Write your post content..."
+                                    className="w-full p-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition h-36 resize-none"
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-1">
+                                <button
+                                    type="button"
+                                    onClick={closeEditModal}
+                                    className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={editLoading}
+                                    className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold text-sm transition"
+                                >
+                                    {editLoading ? "Saving..." : "💾 Save Changes"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirm Modal */}
+            {deleteId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5 text-center">
+                        <div className="text-5xl">🗑️</div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-800">Delete Post?</h2>
+                            <p className="text-gray-500 text-sm mt-1">
+                                This action cannot be undone. The post will be permanently removed.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteId(null)}
+                                disabled={deleteLoading}
+                                className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                disabled={deleteLoading}
+                                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-semibold text-sm transition"
+                            >
+                                {deleteLoading ? "Deleting..." : "Yes, Delete"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

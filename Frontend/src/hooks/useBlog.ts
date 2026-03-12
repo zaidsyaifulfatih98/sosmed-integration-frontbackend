@@ -25,8 +25,13 @@ export const useBlog = () => {
     return res.data;
   };
 
-  const updatePost = async (id: number, data: any) => {
+  const updatePost = async (id: string, data: any) => {
     const res = await axios.put(`${API}/${id}`, data);
+    return res.data;
+  };
+
+  const deletePost = async (id: string) => {
+    const res = await axios.delete(`${API}/${id}`);
     return res.data;
   };
 
@@ -35,5 +40,6 @@ export const useBlog = () => {
     getPostById,
     createPost,
     updatePost,
+    deletePost,
   };
 };
